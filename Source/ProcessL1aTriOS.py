@@ -1,9 +1,8 @@
 '''Process Raw (L0) data to L1A HDF5'''
 import os
 import json
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
 import re
-import datetime as dt
 import numpy as np
 import pandas as pd
 import tables
@@ -122,24 +121,23 @@ class ProcessL1aTriOS:
                 # root.attributes["TIME-STAMP"] = a_name
                 root.attributes["CAST"] = a_name
                 for file in ffp:
-                    if "SAM_" in file:
-                        name = file[file.index('SAM_')+4:file.index('SAM_')+8]
-                    else:
-                        print("ERROR : naming convention os not respected")
-                        name = None
+                    try:
+                        # Regex accomodate both SAM_1234_ and SAM1234 conventions
+                        name = re.findall(r'SAM_?(\d+)_', os.path.basename(file))[0]
+                    except IndexError:
+                        raise ValueError("ERROR : naming convention os not respected")
 
                     start,_ = ProcessL1aTriOS.formatting_instrument(name,cal_path,file,root,configPath)
 
                     if start is None:
                         return None, None
-                    acq_datetime = dt.datetime.strptime(start,"%Y%m%dT%H%M%SZ")
-                    root.attributes["TIME-STAMP"] = dt.datetime.strftime(acq_datetime,'%a %b %d %H:%M:%S %Y')
+                    acq_datetime = datetime.strptime(start,"%Y%m%dT%H%M%SZ")
+                    root.attributes["TIME-STAMP"] = datetime.strftime(acq_datetime,'%a %b %d %H:%M:%S %Y')
 
 
                 # File naming convention on TriOS TBD depending on convention used in MSDA_XE
                 #The D-6 requirements to add the timestamp manually on every acquisition is impractical.
                 #Convert to using any unique name and append timestamp from data (start)
-
                 try:
                     new_name = file.split('/')[-1].split('.mlb')[0].split(f'SAM_{name}_RAW_SPECTRUM_')[1]
                     if re.search(r'\d{4}S', file.split('/')[-1]) is not None:
@@ -148,7 +146,10 @@ class ProcessL1aTriOS:
                     print(err)
                     msg = "possibly an error in naming of Raw files"
                     Utilities.writeLogFile(msg)
-                    new_name = file.split('/')[-1].split('.mlb')[0].split(f'SAM_{name}_Spectrum_RAW_')[1]
+                    try:
+                        new_name = file.split('/')[-1].split('.mlb')[0].split(f'SAM_{name}_Spectrum_RAW_')[1]
+                    except IndexError as e:
+                        new_name = f'{start}'  # Needed for files with different naming conventions
 
                 # new_name = outFilePath + '/' + 'Trios_' + str(start) + '_' + str(stop) + '_L1A.hdf'
                 # outFFP.append(os.path.join(outFilePath,f'{new_name}_L1A.hdf'))
@@ -214,36 +215,50 @@ class ProcessL1aTriOS:
         data = pd.read_csv(inputfile, skiprows=end_meta+2, nrows=255, header=None, sep=r'\s+')[1]
         meta = meta.to_numpy(dtype=str)
         data = data.to_numpy(dtype=str)
-        date1 = dt.datetime.strptime(meta[1], " %Y-%m-%d %H:%M:%S")
+        date1 = datetime.strptime(meta[1], " %Y-%m-%d %H:%M:%S")
         time = meta[1].split(' ')[2]
         meta[0] = date1
         meta[1] = time
         return meta,data
 
-    # Function for reading and formatting .mlb data file
     @staticmethod
-    def read_mlb(inputfile):
-        file_dat = open(inputfile,'r', encoding="utf-8")
-        flag = 0
-        index = 0
-        for line in file_dat:
-            index = index + 1
-            # checking end of attributes
-            if 'DateTime' in line:
-                flag = 1
-                break
-        if flag == 0:
-            print('PROBLEM WITH FILE .mlb: Metadata not found')
-            exit()
-        else:
-            end_meta = index
-        file_dat.close()
-        data_temp = pd.read_csv(inputfile, skiprows=end_meta+1, header=None, sep=r'\s+')
-        meta = pd.concat([data_temp[0],data_temp[1],data_temp[2],data_temp[3]], axis=1, ignore_index=True)
-        data_temp = data_temp.drop(columns=[0,1,2,3])
-        time = data_temp.iloc[:,-1]
-        data = data_temp.iloc[:,:-2]
-        return meta,data,time
+    def read_mlb(filename):
+        """
+        Read TriOS .mlb file and return metadata (e.g. temperature, tilt, integration time),
+            spectrum data, and timestamps (from IDData)
+        """
+        # Skip Header and Get Column Names
+        with open(filename, 'r', encoding="utf-8") as f:
+            start_index, column_names = 0, ''
+            for l in f:
+                if l == '\n' or l.startswith('%'):
+                    start_index += 1
+                    column_names = l
+                    continue
+                else:
+                    break
+            else:
+                raise ValueError("No header found in file")
+        column_names = re.split('\s+%', column_names[1:].strip())
+        # Read Data
+        data = pd.read_csv(filename, skiprows=start_index + 1, names=column_names, sep=r'\s+')
+        # Format IDData to UTC datetime
+        # dt = pd.to_datetime(data.IDData.str[6:], format='%Y-%m-%d_%H-%M-%S_%f', utc=True)
+        if 'DateTime' not in data.columns:
+            dt = pd.to_datetime(data.IDData.str[6:], format='%Y-%m-%d_%H-%M-%S_%f', utc=True)
+            # Convert from seconds since 1970-01-01 to days since 1900-01-01
+            dt = ((datetime(1970, 1, 1) - datetime(1900, 1, 1)).total_seconds() + dt.to_numpy(dtype=float)/10**9) / 86400
+            # Add two days to match legacy format
+            dt += 2
+            # Insert Column at position 0
+            data.insert(0, 'DateTime', dt)
+            column_names = ['DateTime'] + column_names
+        # Extract Spectrum Columns
+        spec_cols = [idx for idx, h in enumerate(column_names) if h.startswith('c')]
+        meta = data.iloc[:, 0:spec_cols[0]]
+        specs = data.iloc[:, spec_cols]
+        time = data.IDData
+        return meta, specs, time
 
     # Function for reading cal files
     @staticmethod
@@ -302,7 +317,7 @@ class ProcessL1aTriOS:
     # Function for data formatting
     @staticmethod
     def formatting_instrument(name, cal_path, input_file, root, configPath):
-        print('Formatting ' +name+ ' Data')
+        print('Formatting ' + str(name) + ' Data')
         # Extract measurement type from config file
         with open(configPath, 'r', encoding="utf-8") as fc:
             text = fc.read()
@@ -324,9 +339,7 @@ class ProcessL1aTriOS:
         ProcessL1aTriOS.attr_ini(cal_path + 'SAM_'+name+'.ini',gp)
 
         # Formatting data
-        data = pd.DataFrame()
-        meta = pd.DataFrame()
-        meta,data,time = ProcessL1aTriOS.read_mlb(input_file)
+        meta, data, time = ProcessL1aTriOS.read_mlb(input_file)
 
         ## if date is the first field "%yyy-mm-dd"
         if len(time[0].rsplit('_')[0]) == 11:
@@ -339,47 +352,35 @@ class ProcessL1aTriOS:
             datetag = [float(i.rsplit('-')[0] + str(date(int(i.rsplit('-')[0]), int(i.rsplit('-')[1]), int(i.rsplit('-')[2])).timetuple().tm_yday)) for i in dates]
             timetag = [float(i.rsplit('_')[2].replace('-','') + '000') for i in time]
 
-        # Reshape data
-        rec_datetag  = ProcessL1aTriOS.reshape_data('NONE',len(meta[0]),data=meta[0])
-        rec_datetag2  = ProcessL1aTriOS.reshape_data('NONE',len(meta[0]),data=datetag)
-        rec_inttime  = ProcessL1aTriOS.reshape_data(sensor,len(meta[3]),data=meta[3])
-        rec_check  = ProcessL1aTriOS.reshape_data('SUM',len(meta[0]),data=np.zeros(len(meta)))
-        rec_darkave  = ProcessL1aTriOS.reshape_data(sensor,len(meta[0]),data=np.zeros(len(meta)))
-        rec_darksamp  = ProcessL1aTriOS.reshape_data(sensor,len(meta[0]),data=np.zeros(len(meta)))
-        rec_frame  = ProcessL1aTriOS.reshape_data('COUNTER',len(meta[0]),data=np.zeros(len(meta)))
-        rec_posframe  = ProcessL1aTriOS.reshape_data('COUNT',len(meta[0]),data=np.zeros(len(meta)))
-        rec_sample  = ProcessL1aTriOS.reshape_data('DELAY',len(meta[0]),data=np.zeros(len(meta)))
-        rec_spectemp  = ProcessL1aTriOS.reshape_data('NONE',len(meta[0]),data=np.zeros(len(meta)))
-        rec_thermalresp  = ProcessL1aTriOS.reshape_data('NONE',len(meta[0]),data=np.zeros(len(meta)))
-        rec_time  = ProcessL1aTriOS.reshape_data('NONE',len(meta[0]),data=np.zeros(len(meta)))
-        rec_timetag2  = ProcessL1aTriOS.reshape_data('NONE',len(meta[0]),data=timetag)
-
-        # HDF5 Dataset creation
-        gp.attributes['CalFileName'] = 'SAM_'+name+'.ini'
-        gp.addDataset('DATETAG')
-        gp.datasets['DATETAG'].data=np.array(rec_datetag2, dtype=[('NONE', '<f8')])
-        gp.addDataset('INTTIME')
-        gp.datasets['INTTIME'].data=np.array(rec_inttime, dtype=[('NONE', '<f8')])
-        gp.addDataset('CHECK')
-        gp.datasets['CHECK'].data=np.array(rec_check, dtype=[('NONE', '<f8')])
-        gp.addDataset('DARK_AVE')
-        gp.datasets['DARK_AVE'].data=np.array(rec_darkave, dtype=[('NONE', '<f8')])
-        gp.addDataset('DARK_SAMP')
-        gp.datasets['DARK_SAMP'].data=np.array(rec_darksamp, dtype=[('NONE', '<f8')])
-        gp.addDataset('FRAME')
-        gp.datasets['FRAME'].data=np.array(rec_frame, dtype=[('NONE', '<f8')])
-        gp.addDataset('POSFRAME')
-        gp.datasets['POSFRAME'].data=np.array(rec_posframe, dtype=[('NONE', '<f8')])
-        gp.addDataset('SAMPLE')
-        gp.datasets['SAMPLE'].data=np.array(rec_sample, dtype=[('NONE', '<f8')])
-        gp.addDataset('SPECTEMP')
-        gp.datasets['SPECTEMP'].data=np.array(rec_spectemp, dtype=[('NONE', '<f8')])
-        gp.addDataset('THERMAL_RESP')
-        gp.datasets['THERMAL_RESP'].data=np.array(rec_thermalresp, dtype=[('NONE', '<f8')])
-        gp.addDataset('TIMER')
-        gp.datasets['TIMER'].data=np.array(rec_time, dtype=[('NONE', '<f8')])
-        gp.addDataset('TIMETAG2')
-        gp.datasets['TIMETAG2'].data=np.array(rec_timetag2, dtype=[('NONE', '<f8')])
+        # Reshape data and create HDF5 datasets
+        gp.attributes['CalFileName'] = 'SAM_' + name + '.ini'
+        n = len(meta)
+        cfg = [
+            # ('DATETAG', meta['DateTime'], 'NONE'),
+            # ('DATETAG2', datetag, 'NONE'),
+            ('DATETAG', datetag, 'NONE'),
+            ('INTTIME', meta['IntegrationTime'], sensor),
+            ('CHECK', np.zeros(n), 'NONE'),
+            ('DARK_AVE', meta['DarkAvg'] if 'DarkAvg' in meta.columns else np.zeros(n), sensor),
+            ('DARK_SAMP', np.zeros(n), sensor),
+            ('FRAME', np.zeros(n), 'COUNTER'),
+            ('POSFRAME', np.zeros(n), 'COUNT'),
+            ('SAMPLE', np.zeros(n), 'DELAY'),
+            ('SPECTEMP', meta['Temperature'] if 'Temperature' in meta.columns else np.zeros(n), 'NONE'),
+            ('THERMAL_RESP', np.zeros(n), 'NONE'),
+            ('TIMER', np.zeros(n), 'NONE'),
+            ('TIMETAG2', timetag, 'NONE')
+        ]
+        if 'PreTilt' in meta.columns:
+            cfg.append(('TILT_PRE', meta['PreTilt'], 'NONE'))
+        if 'PostTilt' in meta.columns:
+            cfg.append(('TILT_POST', meta['PostTilt'], 'NONE'))
+        for k, v, t in cfg:
+            # Reshape Data
+            rec = ProcessL1aTriOS.reshape_data(t, n, data=v)
+            # HDF5 Dataset Creation
+            gp.addDataset(k)
+            gp.datasets[k].data = np.array(rec, dtype=[('NONE', '<f8')])
 
         # Computing wavelengths
         c0 = float(gp.attributes['c0s'])
@@ -404,7 +405,6 @@ class ProcessL1aTriOS:
         gp.addDataset(sensor)
         gp.datasets[sensor].data=np.array(rec_arr, dtype=ds_dt)
 
-
         # Calibrations files
         metacal,cal = ProcessL1aTriOS.read_cal(cal_path + 'Cal_SAM_'+name+'.dat')
         B1 = gp.addDataset('CAL_'+sensor)
@@ -420,8 +420,8 @@ class ProcessL1aTriOS:
         C1.columnsToDataset()
 
         ProcessL1aTriOS.get_attr(metaback,C1)
-        start_time = dt.datetime.strftime(dt.datetime(1900,1,1) + timedelta(days=rec_datetag[0][0]-2), "%Y%m%dT%H%M%SZ")
-        stop_time = dt.datetime.strftime(dt.datetime(1900,1,1) + timedelta(days=rec_datetag[-1][0]-2), "%Y%m%dT%H%M%SZ")
+        start_time = datetime.strftime(datetime(1900,1,1) + timedelta(days=meta['DateTime'].iloc[0]-2), "%Y%m%dT%H%M%SZ")
+        stop_time = datetime.strftime(datetime(1900,1,1) + timedelta(days=meta['DateTime'].iloc[-1]-2), "%Y%m%dT%H%M%SZ")
 
         return start_time,stop_time
 
@@ -445,5 +445,3 @@ class ProcessL1aTriOS:
                     gp.datasets[ds].data = np.array([x for _, x in sorted(zip(dateTime,gp.datasets[ds].data))])
 
         return node
-
-    
