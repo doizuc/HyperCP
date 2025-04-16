@@ -145,7 +145,7 @@ class Utilities:
 
     @staticmethod
     def checkInputFiles(inFilePath, level="L1A+"):
-        if ConfigFile.settings['SensorType'].lower() == 'trios':
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             flag_Trios = True
         else:
             flag_Trios = False
@@ -1094,7 +1094,7 @@ class Utilities:
             timeStamp = group.getDataset("Timestamp").data["Datetime"]
             # TRIOS: copy CAL & BACK before filetering, and delete them 
             # to avoid conflict when filtering more row than 255
-            if ConfigFile.settings['SensorType'].lower() == 'trios':
+            if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                 do_reset = True
                 raw_cal  = group.getDataset("CAL_"+group.id[0:2]).data
                 raw_back = group.getDataset("BACK_"+group.id[0:2]).data
@@ -1143,7 +1143,7 @@ class Utilities:
                 break
             timeStamp = newTimeStamp.copy()
 
-        if ConfigFile.settings['SensorType'].lower() == 'trios':
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             # TRIOS: reset CAL and BACK as before filtering
             if do_reset:
                 group.addDataset("CAL_"+group.id[0:2])
@@ -1185,7 +1185,7 @@ class Utilities:
         dataDelta = None
         # Note: If only one spectrum is left in a given ensemble, STD will
         #be zero for Es, Li, and Lt.'''
-        if ConfigFile.settings['SensorType'].lower() == 'trios' and ConfigFile.settings['bL1bCal'] == 1:
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"] and ConfigFile.settings['bL1bCal'] == 1:
             suffix = 'sd'
         else:
             suffix = 'unc'
@@ -2335,7 +2335,7 @@ class Utilities:
                     sensorID[sensorCode] = "LT"
 
             # elif "IDDevice" in grp.attributes:
-            elif ConfigFile.settings['SensorType'].lower() == 'trios':
+            elif ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                 if "ES" in grp.datasets:
                     sensorID[grp.attributes["IDDevice"][4:8]] = "ES"
                 if "LI" in grp.datasets:

@@ -30,7 +30,7 @@ class ProcessL1b_FRMCal:
             # keys change depending on if the process is called at L1B or L2, store correct keys in dictionary
             if ConfigFile.settings['SensorType'].lower() == "seabird":
                 irad_key = f'{sensortype}_LIGHT_L1AQC'
-            elif ConfigFile.settings['SensorType'].lower() == 'trios':
+            elif ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                 irad_key = f'{sensortype}_L1AQC'
             else:
                 return False
@@ -54,7 +54,9 @@ class ProcessL1b_FRMCal:
 
         anc_grp = node.getGroup(keys['anc'])
 
-        if ConfigFile.settings['bL1aqcSunTracker'] == 1:
+        if ConfigFile.settings['SensorType'].lower() == "trios es only":
+            rel_az = np.zeros(len(anc_grp.datasets['SOLAR_AZ'].columns[keys['saa']]))
+        elif ConfigFile.settings['bL1aqcSunTracker'] == 1:
             rel_az = np.asarray(anc_grp.datasets['REL_AZ'].columns["REL_AZ"])
         else:
             rel_az = np.asarray(anc_grp.datasets['REL_AZ'].columns[keys['rel']])

@@ -24,6 +24,8 @@ class HDFGroup:
 
     def datasetDeleteRow(self, i):
         for k in self.datasets:
+            if k.startswith('BACK_') or k.startswith('CAL_'):
+                continue
             ds = self.datasets[k]
             ds.data = np.delete(ds.data, (i), axis=0)
 

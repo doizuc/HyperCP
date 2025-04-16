@@ -143,7 +143,6 @@ class ProcessL1aTriOS:
                     if re.search(r'\d{4}S', file.split('/')[-1]) is not None:
                         new_name = new_name+'_'+str(start)  # I'm not sure what match2 was supposed to find in ACRI's code - AR
                 except IndexError as err:
-                    print(err)
                     msg = "possibly an error in naming of Raw files"
                     Utilities.writeLogFile(msg)
                     try:
@@ -410,16 +409,16 @@ class ProcessL1aTriOS:
         B1 = gp.addDataset('CAL_'+sensor)
         B1.columns["0"] = cal.values[:,1].astype(np.float64)
         B1.columnsToDataset()
-
         ProcessL1aTriOS.get_attr(metacal,B1)
+
         metaback,back = ProcessL1aTriOS.read_cal(cal_path + 'Back_SAM_'+name+'.dat')
         # C1 = gp.addDataset('BACK_'+sensor,data=back[[1,2]].astype(np.float64))
         C1 = gp.addDataset('BACK_'+sensor)
         C1.columns["0"] = back.values[:,1]
         C1.columns["1"] = back.values[:,2]
         C1.columnsToDataset()
-
         ProcessL1aTriOS.get_attr(metaback,C1)
+
         start_time = datetime.strftime(datetime(1900,1,1) + timedelta(days=meta['DateTime'].iloc[0]-2), "%Y%m%dT%H%M%SZ")
         stop_time = datetime.strftime(datetime(1900,1,1) + timedelta(days=meta['DateTime'].iloc[-1]-2), "%Y%m%dT%H%M%SZ")
 

@@ -36,7 +36,7 @@ class ConfigWindow(QtWidgets.QDialog):
         # sensor type
         sensorTypeLabel = QtWidgets.QLabel("Sensor Type:", self)
         self.sensorTypeComboBox = QtWidgets.QComboBox(self)
-        self.sensorTypeComboBox.addItems(["Choose a sensor ...", "SeaBird", "TriOS"])
+        self.sensorTypeComboBox.addItems(["Choose a sensor ...", "SeaBird", "TriOS", "TriOS Es Only"])
         CurrentSensor = ConfigFile.settings["SensorType"]
         index = self.sensorTypeComboBox.findText(CurrentSensor,QtCore.Qt.MatchFixedString)
         self.sensorTypeComboBox.setCurrentIndex(index)
@@ -76,17 +76,15 @@ class ConfigWindow(QtWidgets.QDialog):
         if CurrentSensor.lower() == "seabird":
             self.calibrationFrameTypeComboBox.addItem("ShutterLight")
             self.calibrationFrameTypeComboBox.addItem("ShutterDark")
-            self.calibrationFrameTypeComboBox.addItem("Not Required")
-            self.calibrationFrameTypeComboBox.currentIndexChanged.connect(self.calibrationFrameTypeChanged)
-            self.calibrationFrameTypeComboBox.setEnabled(False)
-
         elif CurrentSensor.lower() == "trios":
             self.calibrationFrameTypeComboBox.addItem("LI")
             self.calibrationFrameTypeComboBox.addItem("LT")
             self.calibrationFrameTypeComboBox.addItem("ES")
-            self.calibrationFrameTypeComboBox.addItem("Not Required")
-            self.calibrationFrameTypeComboBox.currentIndexChanged.connect(self.calibrationFrameTypeChanged)
-            self.calibrationFrameTypeComboBox.setEnabled(False)
+        elif CurrentSensor.lower() == "trios es only":
+            self.calibrationFrameTypeComboBox.addItem("ES")
+        self.calibrationFrameTypeComboBox.addItem("Not Required")
+        self.calibrationFrameTypeComboBox.currentIndexChanged.connect(self.calibrationFrameTypeChanged)
+        self.calibrationFrameTypeComboBox.setEnabled(False)
 
         # L1A
         l1aLabel = QtWidgets.QLabel("Level 1A Processing", self)
@@ -1255,6 +1253,11 @@ class ConfigWindow(QtWidgets.QDialog):
             # self.DefaultCalRadioButtonSeaBird.setChecked(False)
             # self.DefaultCalRadioButtonSeaBird.setDisabled(True)
 
+        elif CurrentSensor.lower() == "trios es only":
+            comboList = ['ES']
+            self.calibrationFrameTypeComboBox.clear()
+            self.calibrationFrameTypeComboBox.addItems(comboList)
+
     def setCalibrationSettings(self):
         print("CalibrationEditWindow - setCalibrationSettings")
         calFileName = self.calibrationFileComboBox.currentText()
@@ -1375,7 +1378,7 @@ class ConfigWindow(QtWidgets.QDialog):
         sensor = self.sensorTypeComboBox.currentText()
         ConfigFile.settings["SensorType"] = sensor
 
-        if sensor.lower() == 'trios':
+        if sensor.lower() in ['trios', 'trios es only']:
             self.l1aqcDeglitchCheckBox.setChecked(False)
             self.l1aqcDeglitchCheckBox.setEnabled(False)
             self.l1aqcDeglitchLabel.setEnabled(False)

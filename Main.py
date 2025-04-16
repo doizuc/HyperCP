@@ -472,7 +472,7 @@ class Window(QtWidgets.QWidget):
                 configFileName, calFiles
             )
         # else:
-        elif ConfigFile.settings["SensorType"].lower() == "trios":
+        elif ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             calibrationMap = Controller.processCalibrationConfigTrios(calFiles)
 
         if not calibrationMap:
@@ -557,7 +557,7 @@ class Window(QtWidgets.QWidget):
 
         calFiles = ConfigFile.settings["CalibrationFiles"]
         # To check instrument type
-        if ConfigFile.settings["SensorType"].lower() == "trios":
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             calibrationMap = Controller.processCalibrationConfigTrios(calFiles)
         elif ConfigFile.settings["SensorType"].lower() == "seabird":
             print("Process Calibration Files")
@@ -654,7 +654,7 @@ class Command:
 
         calFiles = ConfigFile.settings["CalibrationFiles"]
 
-        if ConfigFile.settings["SensorType"].lower() == "trios":
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             calibrationMap = Controller.processCalibrationConfigTrios(calFiles)
         elif ConfigFile.settings["SensorType"].lower() == "seabird":
             print("Process Calibration Files")
@@ -670,7 +670,7 @@ class Command:
         SeaBASSHeader.saveSeaBASSHeader(ConfigFile.settings['seaBASSHeaderFileName'])
 
         if processMultiLevel:
-            if ConfigFile.settings["SensorType"].lower() == "trios" and to_level == "L1A":
+            if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"] and to_level == "L1A":
                 Controller.processFilesMultiLevel(
                     self.outputDirectory, iFile, calibrationMap)
             else:

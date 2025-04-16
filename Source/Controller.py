@@ -75,8 +75,10 @@ class Controller:
                 root.attributes['TIME-STAMP'] = 'Null' # Collection time not preserved in failed RAW>L1A
             root.attributes['Fail'] = 1
 
-
-        timeStamp = root.attributes['TIME-STAMP']
+        try:
+            timeStamp = root.attributes['TIME-STAMP']
+        except KeyError:
+            timeStamp = 'Null'
         title = f'File: {fileName} Collected: {timeStamp}'
 
         # Reports
@@ -288,7 +290,7 @@ class Controller:
         if ConfigFile.settings["SensorType"].lower() == "seabird":
             root = ProcessL1aSeaBird.processL1a(inFilePath, calibrationMap)
             outFFPs = outFilePath
-        elif ConfigFile.settings["SensorType"].lower() == "trios":
+        elif ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             root, outFFPs = ProcessL1aTriOS.processL1a(inFilePath, outFilePath)
         elif ConfigFile.settings["SensorType"].lower() == "sorad":
             root = ProcessL1aSoRad.processL1a(inFilePath, calibrationMap)
@@ -299,7 +301,7 @@ class Controller:
 
         if root is not None:
             try:
-                if ConfigFile.settings["SensorType"].lower() != "trios":
+                if ConfigFile.settings["SensorType"].lower() not in ["trios", "trios es only"]:
                     # TriOS L1a files are written in ProcessL1aTriOS
                     root.writeHDF5(outFFPs)
             except Exception:
@@ -382,7 +384,7 @@ class Controller:
             Utilities.writeLogFile(msg)
             return None
 
-        if ConfigFile.settings["SensorType"].lower() == "trios":
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             root = ProcessL1bTriOS.processL1b(root, outFilePath)
         else:
             root = ProcessL1b.processL1b(root, outFilePath)
@@ -458,7 +460,7 @@ class Controller:
         _, filename = os.path.split(outFilePath)
         if node is not None:
 
-            if ConfigFile.settings['SensorType'].lower() == 'trios' and ConfigFile.settings['bL1bCal'] == 1:
+            if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"] and ConfigFile.settings['bL1bCal'] == 1:
                 plotDeltaBool = False
             else:
                 plotDeltaBool = True
@@ -530,7 +532,7 @@ class Controller:
             os.mkdir(pathOutLevel)
 
         # Redeploying flag_Trios here as it's the only SensorType/Platform that requires triplets at L1A so far
-        if ConfigFile.settings["SensorType"].lower() == "trios":
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             flag_Trios = True
         else:
             flag_Trios = False
@@ -824,7 +826,7 @@ class Controller:
         print("processFilesMultiLevel")
 
         L1A_complete = False
-        if ConfigFile.settings["SensorType"].lower() == "trios":
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
             # TriOS Raw files are triplets. Process all to L1A and then continue normally
             if Controller.processSingleLevel(pathOut, inFiles, calibrationMap, 'L1A'):
                 L1A_complete = True
@@ -833,7 +835,7 @@ class Controller:
         for fp in inFiles:
             print("Processing: " + fp)
 
-            if not ConfigFile.settings["SensorType"].lower() == "trios":
+            if not ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                 # Process to L1A unless it's trios, which is handled above
                 L1A_complete = False
                 if Controller.processSingleLevel(pathOut, fp, calibrationMap, 'L1A'):
@@ -841,7 +843,7 @@ class Controller:
 
             if L1A_complete:
                 inFileName = os.path.split(fp)[1]
-                if ConfigFile.settings["SensorType"].lower() == "trios":
+                if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                     # For TriOS, need to parse the L1A names, not L0
                     fileName = os.path.join('L1A',f'{os.path.splitext(inFileName)[0]}'+'.hdf')
                 else:
@@ -885,7 +887,7 @@ class Controller:
         #   the triplet for processing and end up with 1 L1A HDF file
         #   The way TriosL1A.py is written, it needs the whole list of files, not a single file
 
-        if ConfigFile.settings["SensorType"].lower() == "trios" and level == "L1A":
+        if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"] and level == "L1A":
             for fp in inFiles:
                 # Check that the input file matches what is expected for this processing level
                 # Not case sensitive
