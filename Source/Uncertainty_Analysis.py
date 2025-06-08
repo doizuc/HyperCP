@@ -132,12 +132,14 @@ class Propagate:
                      'syst', 'syst', 'syst', 'syst', 'syst', 'syst', 'syst', 'syst', 'syst', 'syst', 'syst', 'syst']
 
         # NOTE: ISSUE #95
-        unc = self.MCP.propagate_random(self.instruments,
-                                        mean_vals,
-                                        uncertainties,
-                                        corr_between=self.corr_matrix_Default_Instruments,
-                                        corr_x=corr_list,
-                                        output_vars=3)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="One of the correlation matrices is not positive definite.")
+            unc = self.MCP.propagate_random(self.instruments,
+                                            mean_vals,
+                                            uncertainties,
+                                            corr_between=self.corr_matrix_Default_Instruments,
+                                            corr_x=corr_list,
+                                            output_vars=3)
 
         # separate uncertainties and sensor values from their lists - for clarity
         Es_unc, Li_unc, Lt_unc = [unc[i] for i in range(len(unc))]

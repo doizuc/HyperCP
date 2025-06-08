@@ -670,7 +670,7 @@ class Command:
         SeaBASSHeader.saveSeaBASSHeader(ConfigFile.settings['seaBASSHeaderFileName'])
 
         if processMultiLevel:
-            if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"] and to_level == "L1A":
+            if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                 Controller.processFilesMultiLevel(
                     self.outputDirectory, iFile, calibrationMap)
             else:

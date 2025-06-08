@@ -1,4 +1,5 @@
 """ A cornucopia of addition methods """
+import logging
 import os
 import datetime
 import collections
@@ -350,6 +351,11 @@ class Utilities:
         msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         returnValue = msgBox.exec_()
         return returnValue
+
+    @staticmethod
+    def writeLogFileAndPrint(logText, mode='a'):
+        Utilities.writeLogFile(logText, mode)
+        print(logText)
 
     @staticmethod
     def writeLogFile(logText, mode='a'):
@@ -2246,7 +2252,7 @@ class Utilities:
                     ThermUnc.append(0)
 
         # TRIOS case: no temperature available
-        elif ConfigFile.settings['SensorType'].lower() == "trios":
+        elif ConfigFile.settings['SensorType'].lower() in ["trios", "trios es only"]:
             # For Trios the radiometer InternalTemp is a place holder filled with 0.
             # We use ambiant_temp+2.5° instead to estimate internal temp
             for i in range(len(therm_coeff)):
@@ -2273,7 +2279,8 @@ class Utilities:
         unc_grp = node.getGroup("RAW_UNCERTAINTIES")
         sensorID = Utilities.get_sensor_dict(node)
         # inv_ID = {v: k for k, v in sensorID.items()}
-        for sensor in ["LI", "LT", "ES"]:
+        sensor_list = [g.id for g in node.groups if g.id in ('ES', 'LI', 'LT')]
+        for sensor in sensor_list:
             TempCoeffDS = unc_grp.getDataset(sensor+"_TEMPDATA_CAL")
 
             ### Seabird
@@ -2294,7 +2301,7 @@ class Utilities:
                     print(msg)
 
             ### Trios
-            elif ConfigFile.settings['SensorType'].lower() == "trios":
+            elif ConfigFile.settings['SensorType'].lower() in ["trios", "trios es only"]:
                 # No internal temperature available for Trios, set to 0.
                 internalTemp = 0
                 # Ambiant temperature is needed to estimate internal temperature instead.
@@ -2481,13 +2488,13 @@ class Utilities:
     def interpUncertainties_Factory(node):
 
         grp = node.getGroup("RAW_UNCERTAINTIES")
-        sensorList = ['ES', 'LI', 'LT']
-        for sensor in sensorList:
+        sensor_list = [g.id for g in node.groups if g.id in ('ES', 'LI', 'LT')]
+        for sensor in sensor_list:
 
             ## retrieve dataset from corresponding instrument
             if ConfigFile.settings['SensorType'].lower() == "seabird":
                 data = node.getGroup(sensor+'_LIGHT').getDataset(sensor)
-            elif ConfigFile.settings['SensorType'].lower() == "trios":
+            elif ConfigFile.settings['SensorType'].lower() in ["trios", "trios es only"]:
                 data = node.getGroup(sensor).getDataset(sensor)
 
             # Retrieve hyper-spectral wavelengths from dataset
@@ -2567,13 +2574,13 @@ class Utilities:
     def interpUncertainties_Class(node):
 
         grp = node.getGroup("RAW_UNCERTAINTIES")
-        sensorList = ['ES', 'LI', 'LT']
-        for sensor in sensorList:
+        sensor_list = [g.id for g in node.groups if g.id in ('ES', 'LI', 'LT')]
+        for sensor in sensor_list:
 
             ## retrieve dataset from corresponding instrument
             if ConfigFile.settings['SensorType'].lower() == "seabird":
                 data = node.getGroup(sensor+'_LIGHT').getDataset(sensor)
-            elif ConfigFile.settings['SensorType'].lower() == "trios":
+            elif ConfigFile.settings['SensorType'].lower() in ["trios", "trios es only"]:
                 data = node.getGroup(sensor).getDataset(sensor)
 
             # Retrieve hyper-spectral wavelengths from dataset
@@ -2688,8 +2695,8 @@ class Utilities:
 
         grp = node.getGroup("RAW_UNCERTAINTIES")
         # sensorId = Utilities.get_sensor_dict(node)
-        sensorList = ['ES', 'LI', 'LT']
-        for sensor in sensorList:
+        sensor_list = [g.id for g in node.groups if g.id in ('ES', 'LI', 'LT')]
+        for sensor in sensor_list:
 
             ds = grp.getDataset(sensor+"_RADCAL_CAL")
             ds.datasetToColumns()
@@ -2703,7 +2710,7 @@ class Utilities:
             ## retrieve hyper-spectral wavelengths from corresponding instrument
             if ConfigFile.settings['SensorType'].lower() == "seabird":
                 data = node.getGroup(sensor+'_LIGHT').getDataset(sensor)
-            elif ConfigFile.settings['SensorType'].lower() == "trios":
+            elif ConfigFile.settings['SensorType'].lower() in ["trios", "trios es only"]:
                 # inv_dict = {v: k for k, v in sensorId.items()}
                 # data = node.getGroup('SAM_'+inv_dict[sensor]+'.dat').getDataset(sensor)
                 data = node.getGroup(sensor).getDataset(sensor)

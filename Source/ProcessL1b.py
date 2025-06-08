@@ -68,8 +68,9 @@ class ProcessL1b:
                 ds.columns["unc"] = [2.3]
                 ds.columnsToDataset()
 
-        if ConfigFile.settings['SensorType'].lower() == "trios":
-            for sensor in ['LI','LT','ES']:
+        if ConfigFile.settings['SensorType'].lower() in ["trios", "trios es only"]:
+            sensor_list = ['LI','LT','ES'] if ConfigFile.settings['SensorType'].lower() == "trios" else ['ES']
+            for sensor in sensor_list:
                 dsname = sensor+'_RADCAL_UNC'
                 gp.addDataset(dsname)
                 ds = gp.getDataset(dsname)
@@ -116,14 +117,20 @@ class ProcessL1b:
         import re
         
         cal_dates = []
-        for s in ['ES', 'LI', 'LT']:
+        sensor_list = [g.id for g in root.groups if g.id in ('ES', 'LI', 'LT')]
+        for s in sensor_list:
             save_delta = None
             if ConfigFile.settings["SensorType"].lower() in ["trios", "trios es only"]:
                 s_tag = root.getGroup(f"{s}").attributes['IDDevice'][-4:]
             else:
                 s_tag = root.getGroup(f"{s}_LIGHT").attributes['FrameTag'][-4:]
 
-            for f in glob.glob(os.path.join(radcal_dir, f'*{s_tag}_RADCAL*')):
+            radcal_files = glob.glob(os.path.join(radcal_dir, f'*{s_tag}_RADCAL*'))
+            if not radcal_files:
+                Utilities.writeLogFileAndPrint(f"ProcessL1b.read_unc_coefficient_class: No RADCAL files found "
+                                               f"for sensor {s_tag} in {radcal_dir}.")
+
+            for f in radcal_files:
                 cal_date = datetime.strptime(re.search(r'\d{14}', f.split('/')[-1]).group(), "%Y%m%d%H%M%S")
                 meas_date = root.getGroup("ANCILLARY_METADATA").getDataset("DATETIME").data[0]
                 t_delta = cal_date - meas_date.replace(tzinfo=None)

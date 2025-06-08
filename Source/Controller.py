@@ -468,29 +468,43 @@ class Controller:
             # Create Plots
             # Radiometry
             if ConfigFile.settings['bL2PlotRrs']==1:
-                Utilities.plotRadiometry(node, filename, rType='Rrs', plotDelta = plotDeltaBool)
+                if ConfigFile.settings["SensorType"].lower() == "trios es only":
+                    Utilities.writeLogFileAndPrint("Rrs plot is not available for TriOS ES-Only. Skipping plot.")
+                else:
+                    Utilities.plotRadiometry(node, filename, rType='Rrs', plotDelta = plotDeltaBool)
             if ConfigFile.settings['bL2PlotnLw']==1:
-                Utilities.plotRadiometry(node, filename, rType='nLw', plotDelta = plotDeltaBool)
+                if ConfigFile.settings["SensorType"].lower() == "trios es only":
+                    Utilities.writeLogFileAndPrint("nLw plot is not available for TriOS ES-Only. Skipping plot.")
+                else:
+                    Utilities.plotRadiometry(node, filename, rType='nLw', plotDelta = plotDeltaBool)
             if ConfigFile.settings['bL2PlotEs']==1:
                 Utilities.plotRadiometry(node, filename, rType='ES', plotDelta = plotDeltaBool)
             if ConfigFile.settings['bL2PlotLi']==1:
-                Utilities.plotRadiometry(node, filename, rType='LI', plotDelta = plotDeltaBool)
+                if ConfigFile.settings["SensorType"].lower() == "trios es only":
+                    Utilities.writeLogFileAndPrint("Li plot is not available for TriOS ES-Only. Skipping plot.")
+                else:
+                    Utilities.plotRadiometry(node, filename, rType='LI', plotDelta = plotDeltaBool)
             if ConfigFile.settings['bL2PlotLt']==1:
-                Utilities.plotRadiometry(node, filename, rType='LT', plotDelta = plotDeltaBool)
+                if ConfigFile.settings["SensorType"].lower() == "trios es only":
+                    Utilities.writeLogFileAndPrint("Lt plot is not available for TriOS ES-Only. Skipping plot.")
+                else:
+                    Utilities.plotRadiometry(node, filename, rType='LT', plotDelta = plotDeltaBool)
 
             # IOPs
             # These three should plot GIOP and QAA together (eventually, once GIOP is complete)
-            if ConfigFile.products["bL2ProdadgQaa"]:
-                Utilities.plotIOPs(node, filename, algorithm = 'qaa', iopType='adg', plotDelta = False)
-            if ConfigFile.products["bL2ProdaphQaa"]:
-                Utilities.plotIOPs(node, filename, algorithm = 'qaa', iopType='aph', plotDelta = False)
-            if ConfigFile.products["bL2ProdbbpQaa"]:
-                Utilities.plotIOPs(node, filename, algorithm = 'qaa', iopType='bbp', plotDelta = False)
+            if ConfigFile.settings["SensorType"].lower() != "trios es only":
+                if ConfigFile.products["bL2ProdadgQaa"]:
+                    Utilities.plotIOPs(node, filename, algorithm = 'qaa', iopType='adg', plotDelta = False)
+                if ConfigFile.products["bL2ProdaphQaa"]:
+                    Utilities.plotIOPs(node, filename, algorithm = 'qaa', iopType='aph', plotDelta = False)
+                if ConfigFile.products["bL2ProdbbpQaa"]:
+                    Utilities.plotIOPs(node, filename, algorithm = 'qaa', iopType='bbp', plotDelta = False)
 
             # This puts ag, Sg, and DOC on the same plot
-            if ConfigFile.products["bL2Prodgocad"] and ConfigFile.products["bL2ProdSg"] \
-                 and ConfigFile.products["bL2Prodag"] and ConfigFile.products["bL2ProdDOC"]:
-                Utilities.plotIOPs(node, filename, algorithm = 'gocad', iopType='ag', plotDelta = False)
+            if ConfigFile.settings["SensorType"].lower() != "trios es only":
+                if ConfigFile.products["bL2Prodgocad"] and ConfigFile.products["bL2ProdSg"] \
+                     and ConfigFile.products["bL2Prodag"] and ConfigFile.products["bL2ProdDOC"]:
+                    Utilities.plotIOPs(node, filename, algorithm = 'gocad', iopType='ag', plotDelta = False)
 
         # Write output file
         if node is not None:

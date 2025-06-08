@@ -417,13 +417,9 @@ class ProcessL1bqc:
         # Lt Quality Filtering; anomalous elevation in the NIR
         if ConfigFile.settings["bL1bqcLtUVNIR"]:
             if ConfigFile.settings["SensorType"].lower() == "trios es only":
-                msg = "Applying Lt(NIR)>Lt(UV) quality filtering is not available for Es only sensor. Aborting."
-                print(msg)
-                Utilities.writeLogFile(msg)
+                Utilities.writeLogFileAndPrint("Applying Lt(NIR)>Lt(UV) quality filtering is not available for Es only sensor. Aborting.")
                 return False
-            msg = "Applying Lt(NIR)>Lt(UV) quality filtering to eliminate spectra."
-            print(msg)
-            Utilities.writeLogFile(msg)
+            Utilities.writeLogFileAndPrint("Applying Lt(NIR)>Lt(UV) quality filtering to eliminate spectra.")
             # This is not well optimized for large files...
             badTimes = ProcessL1bqc.ltQuality(sasGroup)
 
@@ -436,9 +432,7 @@ class ProcessL1bqc:
                 # check is now fraction removed
                 #   I.e., if >99% of the Es spectra from this entire file were remove, abort this file
                 if check > 0.99:
-                    msg = "Too few spectra remaining. Abort."
-                    print(msg)
-                    Utilities.writeLogFile(msg)
+                    Utilities.writeLogFileAndPrint("Too few spectra remaining. Abort.")
                     return False
                 Utilities.filterData(ancGroup, badTimes)
 
@@ -853,38 +847,39 @@ class ProcessL1bqc:
 
         # Radiance
         gp = node.getGroup("RADIANCE")
-        gp.attributes["LI_UNITS"] = node.attributes["LI_UNITS"]
-        del(node.attributes["LI_UNITS"])
-        gp.attributes["LT_UNITS"] = node.attributes["LT_UNITS"]
-        del(node.attributes["LT_UNITS"])
-        if ConfigFile.settings['bL1bqcEnableSpecQualityCheck']:
-            gp.attributes['LI_SPEC_FILTER'] = str(ConfigFile.settings['fL1bqcSpecFilterLi'])
-            gp.attributes['LT_SPEC_FILTER'] = str(ConfigFile.settings['fL1bqcSpecFilterLt'])
-        if node.attributes['L1AQC_DEGLITCH'] == 'ON':
-            gp.attributes['L1AQC_DEGLITCH'] = 'ON'
-            gp.attributes['LT_WINDOW_DARK'] = node.attributes['LT_WINDOW_DARK']
-            gp.attributes['LT_WINDOW_LIGHT'] = node.attributes['LT_WINDOW_LIGHT']
-            gp.attributes['LT_SIGMA_DARK'] = node.attributes['LT_SIGMA_DARK']
-            gp.attributes['LT_SIGMA_LIGHT'] = node.attributes['LT_SIGMA_LIGHT']
+        if gp:
+            gp.attributes["LI_UNITS"] = node.attributes["LI_UNITS"]
+            del(node.attributes["LI_UNITS"])
+            gp.attributes["LT_UNITS"] = node.attributes["LT_UNITS"]
+            del(node.attributes["LT_UNITS"])
+            if ConfigFile.settings['bL1bqcEnableSpecQualityCheck']:
+                gp.attributes['LI_SPEC_FILTER'] = str(ConfigFile.settings['fL1bqcSpecFilterLi'])
+                gp.attributes['LT_SPEC_FILTER'] = str(ConfigFile.settings['fL1bqcSpecFilterLt'])
+            if node.attributes['L1AQC_DEGLITCH'] == 'ON':
+                gp.attributes['L1AQC_DEGLITCH'] = 'ON'
+                gp.attributes['LT_WINDOW_DARK'] = node.attributes['LT_WINDOW_DARK']
+                gp.attributes['LT_WINDOW_LIGHT'] = node.attributes['LT_WINDOW_LIGHT']
+                gp.attributes['LT_SIGMA_DARK'] = node.attributes['LT_SIGMA_DARK']
+                gp.attributes['LT_SIGMA_LIGHT'] = node.attributes['LT_SIGMA_LIGHT']
 
-            gp.attributes['LT_MINMAX_BAND_DARK'] = node.attributes['LT_MINMAX_BAND_DARK']
-            gp.attributes['LT_MINMAX_BAND_LIGHT'] = node.attributes['LT_MINMAX_BAND_LIGHT']
-            gp.attributes['LT_MAX_DARK'] = node.attributes['LT_MAX_DARK']
-            gp.attributes['LT_MAX_LIGHT'] = node.attributes['LT_MAX_LIGHT']
-            gp.attributes['LT_MIN_DARK'] = node.attributes['LT_MIN_DARK']
-            gp.attributes['LT_MIN_LIGHT'] = node.attributes['LT_MIN_LIGHT']
+                gp.attributes['LT_MINMAX_BAND_DARK'] = node.attributes['LT_MINMAX_BAND_DARK']
+                gp.attributes['LT_MINMAX_BAND_LIGHT'] = node.attributes['LT_MINMAX_BAND_LIGHT']
+                gp.attributes['LT_MAX_DARK'] = node.attributes['LT_MAX_DARK']
+                gp.attributes['LT_MAX_LIGHT'] = node.attributes['LT_MAX_LIGHT']
+                gp.attributes['LT_MIN_DARK'] = node.attributes['LT_MIN_DARK']
+                gp.attributes['LT_MIN_LIGHT'] = node.attributes['LT_MIN_LIGHT']
 
-            gp.attributes['LI_WINDOW_DARK'] = node.attributes['LI_WINDOW_DARK']
-            gp.attributes['LI_WINDOW_LIGHT'] = node.attributes['LI_WINDOW_LIGHT']
-            gp.attributes['LI_SIGMA_DARK'] = node.attributes['LI_SIGMA_DARK']
-            gp.attributes['LI_SIGMA_LIGHT'] = node.attributes['LI_SIGMA_LIGHT']
+                gp.attributes['LI_WINDOW_DARK'] = node.attributes['LI_WINDOW_DARK']
+                gp.attributes['LI_WINDOW_LIGHT'] = node.attributes['LI_WINDOW_LIGHT']
+                gp.attributes['LI_SIGMA_DARK'] = node.attributes['LI_SIGMA_DARK']
+                gp.attributes['LI_SIGMA_LIGHT'] = node.attributes['LI_SIGMA_LIGHT']
 
-            gp.attributes['LI_MINMAX_BAND_DARK'] = node.attributes['LI_MINMAX_BAND_DARK']
-            gp.attributes['LI_MINMAX_BAND_LIGHT'] = node.attributes['LI_MINMAX_BAND_LIGHT']
-            gp.attributes['LI_MAX_DARK'] = node.attributes['LI_MAX_DARK']
-            gp.attributes['LI_MAX_LIGHT'] = node.attributes['LI_MAX_LIGHT']
-            gp.attributes['LI_MIN_DARK'] = node.attributes['LI_MIN_DARK']
-            gp.attributes['LI_MIN_LIGHT'] = node.attributes['LI_MIN_LIGHT']
+                gp.attributes['LI_MINMAX_BAND_DARK'] = node.attributes['LI_MINMAX_BAND_DARK']
+                gp.attributes['LI_MINMAX_BAND_LIGHT'] = node.attributes['LI_MINMAX_BAND_LIGHT']
+                gp.attributes['LI_MAX_DARK'] = node.attributes['LI_MAX_DARK']
+                gp.attributes['LI_MAX_LIGHT'] = node.attributes['LI_MAX_LIGHT']
+                gp.attributes['LI_MIN_DARK'] = node.attributes['LI_MIN_DARK']
+                gp.attributes['LI_MIN_LIGHT'] = node.attributes['LI_MIN_LIGHT']
 
         # SIXS model
         sixSGroup = None

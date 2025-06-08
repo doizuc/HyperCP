@@ -546,7 +546,10 @@ class ProcessL1b_Interp:
         sunTrackers = ['SunTracker_SOLARTRACKER','SunTracker_pySAS','SunTracker_DALEC','SunTracker_SoRad']
 
         newReferenceGroup = root.addGroup("IRRADIANCE")
-        newSASGroup = root.addGroup("RADIANCE")
+
+        node_group_ids, newSASGroup = [gp.id for gp in node.groups], None
+        if 'RADIANCE' in node_group_ids:
+            newSASGroup = root.addGroup("RADIANCE")
         root.groups.append(node.getGroup("GPS"))
         if node.getGroup("ANCILLARY_METADATA"):
             root.groups.append(node.getGroup("ANCILLARY_METADATA"))
@@ -564,7 +567,10 @@ class ProcessL1b_Interp:
             root.groups.append(node.getGroup("SIXS_MODEL"))
 
         referenceGroup = node.getGroup("IRRADIANCE")
-        sasGroup = node.getGroup("RADIANCE")
+        radiance_group_ids, sasGroup = [], None
+        if 'RADIANCE' in node_group_ids:
+            sasGroup = node.getGroup("RADIANCE")
+            radiance_group_ids = [gp.id for gp in sasGroup.groups]
 
         # Propagate L1AQC data
         for gp in node.groups:
@@ -580,12 +586,16 @@ class ProcessL1b_Interp:
                         newGroup.datasets[ds].datasetToColumns()
 
         esData = referenceGroup.getDataset("ES")
-        liData = sasGroup.getDataset("LI")
-        ltData = sasGroup.getDataset("LT")
+        if 'LI' in radiance_group_ids:
+            liData = sasGroup.getDataset("LI")
+        if 'LT' in radiance_group_ids:
+            ltData = sasGroup.getDataset("LT")
 
         newESData = newReferenceGroup.addDataset("ES")
-        newLIData = newSASGroup.addDataset("LI")
-        newLTData = newSASGroup.addDataset("LT")
+        if 'LI' in radiance_group_ids:
+            newLIData = newSASGroup.addDataset("LI")
+        if 'LT' in radiance_group_ids:
+            newLTData = newSASGroup.addDataset("LT")
 
         # Es dataset to dictionary
         esData.datasetToColumns()
@@ -602,48 +612,61 @@ class ProcessL1b_Interp:
         esStart = np.ceil(esWavelength[0])
         esEnd = np.floor(esWavelength[len(esWavelength)-1])
 
-        # Li dataset to dictionary
-        liData.datasetToColumns()
-        # liRaw.datasetToColumns()
-        columns = liData.columns
-        columns.pop("Datetag")
-        columns.pop("Timetag2")
-        columns.pop("Datetime")
-        # Get wavelength values
-        liWavelength = []
-        for k in columns:
-            liWavelength.append(float(k))
-        # Determine interpolated wavelength values
-        liStart = np.ceil(liWavelength[0])
-        liEnd = np.floor(liWavelength[len(liWavelength)-1])
+        if 'LI' in radiance_group_ids:
+            # Li dataset to dictionary
+            liData.datasetToColumns()
+            # liRaw.datasetToColumns()
+            columns = liData.columns
+            columns.pop("Datetag")
+            columns.pop("Timetag2")
+            columns.pop("Datetime")
+            # Get wavelength values
+            liWavelength = []
+            for k in columns:
+                liWavelength.append(float(k))
+            # Determine interpolated wavelength values
+            liStart = np.ceil(liWavelength[0])
+            liEnd = np.floor(liWavelength[len(liWavelength)-1])
 
-        # Lt dataset to dictionary
-        ltData.datasetToColumns()
-        # ltRaw.datasetToColumns()
-        columns = ltData.columns
-        columns.pop("Datetag")
-        columns.pop("Timetag2")
-        columns.pop("Datetime")
-        # Get wavelength values
-        ltWavelength = []
-        for k in columns:
-            ltWavelength.append(float(k))
+        if 'LT' in radiance_group_ids:
+            # Lt dataset to dictionary
+            ltData.datasetToColumns()
+            # ltRaw.datasetToColumns()
+            columns = ltData.columns
+            columns.pop("Datetag")
+            columns.pop("Timetag2")
+            columns.pop("Datetime")
+            # Get wavelength values
+            ltWavelength = []
+            for k in columns:
+                ltWavelength.append(float(k))
 
-        # Determine interpolated wavelength values
-        ltStart = np.ceil(ltWavelength[0])
-        ltEnd = np.floor(ltWavelength[len(ltWavelength)-1])
+            # Determine interpolated wavelength values
+            ltStart = np.ceil(ltWavelength[0])
+            ltEnd = np.floor(ltWavelength[len(ltWavelength)-1])
 
         # No extrapolation
-        start = max(esStart,liStart,ltStart)
-        end = min(esEnd,liEnd,ltEnd)
-        newWavebands = np.arange(start, end, interval)
+        if 'LI' in radiance_group_ids and 'LT' in radiance_group_ids:
+            start = max(esStart,liStart,ltStart)
+            end = min(esEnd,liEnd,ltEnd)
+            newWavebands = np.arange(start, end, interval)
+        elif 'LI' in radiance_group_ids:
+            start = max(esStart,liStart)
+            end = min(esEnd,liEnd)
+            newWavebands = np.arange(start, end, interval)
+        elif 'LT' in radiance_group_ids:
+            start = max(esStart,ltStart)
+            end = min(esEnd,ltEnd)
+            newWavebands = np.arange(start, end, interval)
 
         print('Interpolating Es')
         ProcessL1b_Interp.interpolateWavelength(esData, newESData, newWavebands)
-        print('Interpolating Li')
-        ProcessL1b_Interp.interpolateWavelength(liData, newLIData, newWavebands)
-        print('Interpolating Lt')
-        ProcessL1b_Interp.interpolateWavelength(ltData, newLTData, newWavebands)
+        if 'LI' in node_group_ids:
+            print('Interpolating Li')
+            ProcessL1b_Interp.interpolateWavelength(liData, newLIData, newWavebands)
+        if 'LT' in node_group_ids:
+            print('Interpolating Lt')
+            ProcessL1b_Interp.interpolateWavelength(ltData, newLTData, newWavebands)
 
         return root
 
@@ -727,10 +750,11 @@ class ProcessL1b_Interp:
                 satmsgGroup = gp
             if gp.id == "SIXS_MODEL":
                 sixS_grp = gp
-                
+
         # New group scheme combines both radiance sensors in one group
         refGroup = root.addGroup("IRRADIANCE")
-        sasGroup = root.addGroup("RADIANCE")
+        if ConfigFile.settings["SensorType"].lower() != "trios es only":
+            sasGroup = root.addGroup("RADIANCE")
 
         # Conversion of datasets within groups to move date/timestamps into
         # the data arrays and add datetime column. Also can change dataset name.
