@@ -38,8 +38,15 @@ jobs:
       - name: 🔑 Get GMAO MERRA2 Credentials
         env:
           NETRC: ${{ secrets.NETRC }}
+          run: |
+            printf '%s\n' "$NETRC" > "$HOME/.netrc"
+            chmod 600 "$HOME/.netrc"
+
+      - name: Disable IPv6 for Earthdata access
+        if: runner.os == 'Linux'
         run: |
-          echo "$NETRC" >> ~/.netrc
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
       - name: Test Earthdata connectivity
         if: runner.os == 'Linux'
