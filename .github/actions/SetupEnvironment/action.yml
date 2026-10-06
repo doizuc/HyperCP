@@ -14,7 +14,7 @@ runs:
         activate-environment: hypercp
 
     - name: 🔂 Cache Environment
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ${{ env.CONDA }}/envs
         key:
